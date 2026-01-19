@@ -2,9 +2,41 @@ from flask import Flask, request, render_template
 import time
 import numpy as np
 import cv2 as cv
+import sys
+import socket
+import threading
 face_classifier = cv.CascadeClassifier(
-        cv.data.haarcascades + "haarcascade_frontalface_default.xml"
+            cv.data.haarcascades + "haarcascade_frontalface_default.xml"
     )
+DISCOVERY_PORT = 4210
+HTTP_PORT = 5000
+MAGIC = b"COOKIEMEOW"
+
+def udp_discovery():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(("", DISCOVERY_PORT))
+
+    print("UDP discovery listening...")
+    
+    waiting = True
+    message = "nah";
+    
+    while waiting:
+        data, addr = sock.recvfrom(256)
+        
+        if MAGIC in data :
+            message = data.decode().split("/")[1]
+            
+            reply = f"TURRET_SERVER:{HTTP_PORT} Nyay!".encode()
+            sock.sendto(reply, addr)
+            waiting = False
+    
+    print("Turret connected!")
+    print(f"Received: {message}")
+
+
+
 app = Flask(__name__)
 def faceDetectandDecode(img):
     np_img = np.frombuffer(img, np.uint8)
@@ -26,13 +58,15 @@ def faceDetectandDecode(img):
 @app.route('/',methods=['GET', 'POST'])
 def handleimage():
     if request.method == 'POST':
-        print("skibidi")
         image = request.get_data()
         #with open("image.jpeg", 'wb') as myfile:
             #myfile.write(image)
         #return faceDetect("image.jpeg")
         return faceDetectandDecode(image)
     return render_template('serverpage.html')
+
+
 if __name__ == '__main__':
-    app.run(host="0.0.0.0",port=5000,threaded=True)
+    udp_discovery()
+    app.run(debug=True, use_reloader=False  , host="0.0.0.0",port=HTTP_PORT)
     
