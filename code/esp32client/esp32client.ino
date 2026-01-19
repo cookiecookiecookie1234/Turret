@@ -7,6 +7,9 @@
 static const char* WIFI_SSID = "wifi-n";
 static const char* WIFI_PASS = "#patagonia";
 
+WiFiClient client;
+HTTPClient http;
+
 WiFiUDP udp;
 
 const int DISCOVERY_PORT = 4210;
@@ -36,14 +39,15 @@ void connectWifiOrRestart(){
 
 void cameraSetup(){
     
+    {
     using namespace esp32cam;
 
-    initialResolution = Resolution::find(1024, 768);
+    initialResolution = Resolution::find(768,576);
 
     Config cfg;
     cfg.setPins(pins::AiThinker);
     cfg.setResolution(initialResolution);
-    cfg.setJpeg(80);
+    cfg.setJpeg(65);
 
     bool ok = Camera.begin(cfg);
     if (!ok) {
@@ -52,6 +56,7 @@ void cameraSetup(){
       ESP.restart();
     }
     Serial.println("camera initialize success");
+  }
   
 
   Serial.println("camera starting");
@@ -119,27 +124,18 @@ void setup() {
   cameraSetup();
 
   udpBroadcastServerDiscovery();
+
+  http.setReuse(true); 
+  http.setTimeout(15000);
 }
 
 
-
-
-
-
-
-
 void loop() {
-
-  //captures camera
   auto frame = esp32cam::capture();
   if(!frame){
     Serial.println("capture error");
   }
-  
-  //sends over to uploadurl
-  WiFiClient client;
-  HTTPClient http;
-  http.setTimeout(15000);
+
   if (!http.begin(client, serverUrl)) {
     Serial.println("HTTP upload error");
     delay(2000);
@@ -150,10 +146,12 @@ void loop() {
     Serial.println("HTTP error:");
     Serial.println(http.errorToString(code).c_str());
   }else{
-    Serial.print("Posted and received: ");
     Serial.println(http.getString());
   }
-
   http.end();
-  delay(500);
+  delay(40);
 }
+
+
+
+
