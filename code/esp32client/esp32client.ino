@@ -65,7 +65,10 @@ void udpBroadcastServerDiscovery(){
     Serial.println("Sending UDP broadcast");
 
     udp.beginPacket("255.255.255.255", DISCOVERY_PORT);
-    udp.write((uint8_t*)IDENTIFIER, strlen(IDENTIFIER));
+
+    String msg = String(IDENTIFIER) + "/" + "Hello dear!";
+
+    udp.write((uint8_t*)msg.c_str(), msg.length());
     udp.endPacket();
 
     delay(600);
