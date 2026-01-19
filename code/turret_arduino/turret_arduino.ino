@@ -1,8 +1,9 @@
 #include <Servo.h>
 #include <SoftwareSerial.h>
 
-#define RX_PIN 12  // New pin
-#define TX_PIN 13  // New pin
+#define RX_PIN 12
+#define TX_PIN 13
+const uint8_t DataLenght = 16;
 
 SoftwareSerial espSerial(RX_PIN, TX_PIN);
 
@@ -13,6 +14,7 @@ Servo triggerServo;
 const int xyStepper[4] = {2, 3, 4, 5};
 const int yzStepper[4] = {6, 7, 8, 9};
 int motorPin = 10;
+
 
 float added = 0;
 
@@ -30,7 +32,7 @@ const int stepPatternStrong[4][4] = {
   {1, 0, 0, 1}
 };
 
-float triggerState = 0;
+float triggerState = 90000;
 float xyTarRot = 0;
 float xyStepperCounter = 0;
 
@@ -48,10 +50,12 @@ int read = 00;
 void setup(){
   triggerServo.attach(11);
 
-  Serial.begin(9600);  
+  Serial.begin(19200);  
 
   //Esp 32 data communication (UART)
   espSerial.begin(115200); 
+
+  pinMode(motorPin, OUTPUT);
 
 
 
@@ -94,11 +98,10 @@ void disableStepper(int pins[4]){
 }
 
 void shoot(){
-  triggerState = 30000;
+  triggerState = 0;
 }
 
 void tick(){
-  Serial.println(triggerState);
 
 
   float dt = (micros() - lastTick) / 1.0;
@@ -171,69 +174,138 @@ void tick(){
   
 
   //Asinc servo write
-  triggerState = max(0, triggerState - (0.1 * dt));
-  if (triggerState != 0){
-    triggerServo.write (5);
+  triggerState = min(90000, triggerState + (0.1 * dt));
+  if (triggerState < 45000){
+    if(triggerState > 200){
+      triggerServo.write (5);
+    }
+    
+    digitalWrite(motorPin, HIGH);
   } else {
-    triggerServo.write(180);
+    if (triggerState > 80000 && triggerState < 89000){
+      triggerServo.write (5);
+    } else {
+      triggerServo.write(180);
+    }
+    digitalWrite(motorPin, LOW);
   }
 }
 
-uint8_t receiveBuffer[16];  // Fixed from int8_t
+uint8_t receiveBuffer[(DataLenght + 3) * 2]; 
+uint8_t bufferPacket[(DataLenght + 3)]; 
+uint8_t packet[(DataLenght + 3)]; 
 uint8_t bufferIndex = 0;
+bool bufferFilled = false;
 
 void handleSerial(){
   // Read available bytes without blocking
-  while (espSerial.available() > 0 && bufferIndex < 16) {
-    receiveBuffer[bufferIndex++] = espSerial.read();
+  bool updated = false;
+  while (espSerial.available() > 0) {
+    updated = true;
+
+    if(bufferIndex == ((DataLenght + 3) * 2)){
+      bufferFilled = true;
+    }
+
+    bufferIndex = bufferIndex % ((DataLenght + 3) * 2);
+    
+    uint8_t byte = espSerial.read();
+    receiveBuffer[bufferIndex] = byte;
+
+    bufferIndex++;
   }
+
   
-  // Process complete message
-  if (bufferIndex == 16) {
-    int32_t value1, value2, value3, value4;
-    
-    // Copy bytes to integers
-    memcpy(&value1, &receiveBuffer[0], 4);
-    memcpy(&value2, &receiveBuffer[4], 4);
-    memcpy(&value3, &receiveBuffer[8], 4);
-    memcpy(&value4, &receiveBuffer[12], 4);
-    
-    // Use the values for your turret control
-    xyTarRot = value1;  // Set target rotation from ESP32
-    yzTarRot = value2;  // Set target rotation from ESP32
-    
-    // value3 and value4 available for other commands
-    // For example: if (value3 == 1) shoot();
-    
-    // Debug output (optional - remove if not needed)
-    Serial.print("Received: ");
-    Serial.print(value1); Serial.print(", ");
-    Serial.print(value2); Serial.print(", ");
-    Serial.print(value3); Serial.print(", ");
-    Serial.println(value4);
-    
-    // Reset for next message
-    bufferIndex = 0;
+  if (updated && bufferFilled){
+    uint8_t lastByte = receiveBuffer[(bufferIndex) % ((DataLenght + 3) * 2)];
+    bool foundHeader = false;
+    uint8_t packetCounter = 0;
+
+
+
+    for(int i = 0; i < (DataLenght + 3) * 2; i++){
+      int mi = (i + bufferIndex + 1) % ((DataLenght + 3) * 2);
+      uint8_t byte = receiveBuffer[mi];
+
+      if (foundHeader && packetCounter < (DataLenght + 3)){
+        bufferPacket[packetCounter] = byte;
+        
+        packetCounter++;
+      }
+
+      if (byte == 255 && lastByte == 255 && !foundHeader){
+        foundHeader =  true;
+
+        bufferPacket[0] = lastByte;
+        bufferPacket[1] = byte;
+
+        packetCounter = 2;
+      }
+
+      lastByte = byte;
+    }
+  
+
+    uint8_t sum = 0;
+    for(int i = 2; i < DataLenght + 2; i++){
+      uint8_t byte = bufferPacket[i];
+      sum += byte;
+    }
+
+    if (sum == bufferPacket[DataLenght + 2]){
+      for(int i = 0; i < DataLenght + 3; i++){
+        packet[i] = bufferPacket[i];
+      }
+    } else {
+      Serial.print("sum: ");
+      Serial.print(sum);
+      Serial.print(" expected: ");
+      Serial.print(bufferPacket[DataLenght + 2]);
+    }
   }
+}
+
+
+void printPacket(){
+  Serial.println("----- Packet ------");
+
+  for(int i = 0; i < DataLenght + 3; i++){
+
+    if(i < 2){
+      Serial.print("Header ");
+      Serial.print(i);
+      Serial.print(": ");
+      Serial.println(packet[i]);
+    } else if(i < DataLenght + 2) {
+      Serial.print("Byte ");
+      Serial.print(i);
+      Serial.print(": ");
+      Serial.println(packet[i]);
+    } else {
+      Serial.print("Sum: ");
+      Serial.println(packet[i]);
+    }
+
+  }
+
 }
 
 
 
 void loop() {
-
-
-
   
   handleSerial();
   
   for (int i = 0; i < 5; i++){
 
-  if (millis() % 6000 < 5){
-    shoot();
-  }
+    delay(2);
 
 
     tick();
+  }
+
+  if (millis() % 600 < 11){
+    printPacket();
   }
 }
 
