@@ -37,6 +37,7 @@ def udp_discovery():
         print(f"Received: {message}")
 
 
+
 app = Flask(__name__)
 def faceDetectandDecode(img):
     np_img = np.frombuffer(img, np.uint8)
