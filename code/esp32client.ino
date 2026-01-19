@@ -1,15 +1,15 @@
 #include <WiFi.h>
 #include <esp32cam.h>
 #include <HTTPClient.h>
+WiFiClient client;
+HTTPClient http;
 
-
-static const char* WIFI_SSID = "CLARO_4B0DF9-IoT";
-static const char* WIFI_PASS = "@Cookie2025setembro";
-
+//static const char* WIFI_SSID = "PUT-SSID-HERE";
+//static const char* WIFI_PASS = "PUT-PASSWORD-HERE";
 
 esp32cam::Resolution initialResolution;
 
-String uploadurl = "http://192.168.0.119:5000/";
+String uploadurl = "your-ip-here-azura will update it to detect automatically yippee";
 
 void setup() {
   Serial.begin(115200);
@@ -31,12 +31,12 @@ void setup() {
   {
     using namespace esp32cam;
 
-    initialResolution = Resolution::find(1024, 768);
+    initialResolution = Resolution::find(768,576);
 
     Config cfg;
     cfg.setPins(pins::AiThinker);
     cfg.setResolution(initialResolution);
-    cfg.setJpeg(80);
+    cfg.setJpeg(65);
 
     bool ok = Camera.begin(cfg);
     if (!ok) {
@@ -51,6 +51,8 @@ void setup() {
 
   Serial.print("http://");
   Serial.println(WiFi.localIP());
+  http.setReuse(true); 
+  http.setTimeout(15000);
 }
 
 void loop() {
@@ -58,9 +60,7 @@ void loop() {
   if(!frame){
     Serial.println("capture error");
   }
-  WiFiClient client;
-  HTTPClient http;
-  http.setTimeout(15000);
+
   if (!http.begin(client, uploadurl)) {
     Serial.println("HTTP upload error");
     delay(2000);
@@ -74,9 +74,5 @@ void loop() {
     Serial.println(http.getString());
   }
   http.end();
-  delay(500);
-
-
-
-
+  delay(40);
 }
