@@ -12,27 +12,28 @@ HTTP_PORT = 5000
 MAGIC = b"COOKIEMEOW"
 
 def udp_discovery():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("", DISCOVERY_PORT))
+    while True:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("", DISCOVERY_PORT))
 
-    print("UDP discovery listening...")
+        print("UDP discovery listening...")
     
-    waiting = True
-    message = "nah";
-    
-    while waiting:
-        data, addr = sock.recvfrom(256)
+        waiting = True
+        message = "nah";
         
-        if MAGIC in data :
-            message = data.decode().split("/")[1]
+        while waiting:
+            data, addr = sock.recvfrom(256)
+        
+            if MAGIC in data :
+                message = data.decode().split("/")[1]
             
-            reply = f"TURRET_SERVER:{HTTP_PORT} Nyay!".encode()
-            sock.sendto(reply, addr)
-            waiting = False
+                reply = f"TURRET_SERVER:{HTTP_PORT} Nyay!".encode()
+                sock.sendto(reply, addr)
+                waiting = False
     
-    print("Turret connected!")
-    print(f"Received: {message}")
+        print("Turret connected!")
+        print(f"Received: {message}")
 
 
 app = Flask(__name__)
@@ -49,9 +50,13 @@ def faceDetect(imgpath):
         return (face[0]+(face[2]/2),face[1]+(face[3]/2))
     else:
         return False
+    
+    
 @app.route('/',methods=['GET', 'POST'])
+
 def handleimage():
     if request.method == 'POST':
+        print("image Receive!")
         image = request.get_data()
         with open("image.jpeg", 'wb') as myfile:
             myfile.write(image)
@@ -60,6 +65,26 @@ def handleimage():
 
 
 if __name__ == '__main__':
-    udp_discovery()
+    
+    
+    t = threading.Thread(target=udp_discovery, daemon=True)
+    t.start()
     app.run(debug=True, use_reloader=False  , host="0.0.0.0",port=HTTP_PORT)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     

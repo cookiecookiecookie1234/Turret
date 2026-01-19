@@ -14,7 +14,7 @@ const char* IDENTIFIER = "COOKIEMEOW";
 
 IPAddress serverIP;
 int serverPort = 0;
-bool serverFound = false;
+
 
 
 
@@ -60,7 +60,9 @@ void cameraSetup(){
   Serial.println(WiFi.localIP());
 }
 
+
 void udpBroadcastServerDiscovery(){
+  bool serverFound = false;
   while(!serverFound){
     Serial.println("Sending UDP broadcast");
 
@@ -74,37 +76,42 @@ void udpBroadcastServerDiscovery(){
     delay(600);
     Serial.println("Checking for packets...");
     int packetSize = udp.parsePacket();
-    if (!packetSize) return;
+    if (packetSize) {
+      char buf[64];
+      int len = udp.read(buf, sizeof(buf) - 1);
+      buf[len] = 0;
 
-    char buf[64];
-    int len = udp.read(buf, sizeof(buf) - 1);
-    buf[len] = 0;
+      const char* prefix = "TURRET_SERVER:";
 
-    if (strncmp(buf, "TURRET_SERVER:", 13) == 0) {
-      serverIP = udp.remoteIP();
-      serverPort = atoi(buf + 9);
-      serverFound = true;
+      if (strncmp(buf, prefix, 13) == 0) {
+        serverIP = udp.remoteIP();
+        serverPort = atoi(buf + strlen(prefix));
 
-      serverUrl = "http://" + serverIP.toString() + ":" + serverPort;
 
-      Serial.println("-------------------------------------");
-      Serial.print("Found server! IP: ");
-      Serial.print(serverIP);
-      Serial.print(", Port: ");
-      Serial.println(serverPort);
-      Serial.print("URL: ");
-      Serial.println(serverUrl);
-      Serial.print("Reply: ");
-      Serial.println(buf);
-      Serial.println("-------------------------------------");
+        serverUrl = "http://" + serverIP.toString() + ":" + serverPort;
+
+        Serial.println("-------------------------------------");
+        Serial.print("Found server! IP: ");
+        Serial.print(serverIP);
+        Serial.print(", Port: ");
+        Serial.println(serverPort);
+        Serial.print("URL: ");
+        Serial.println(serverUrl);
+        Serial.print("Reply: ");
+        Serial.println(buf);
+        Serial.println("-------------------------------------");
+      
+        serverFound = true;
+      }
     }
+
+    
   }
 }
 
 void setup() {
   
   Serial.begin(115200);
-  Serial.println();
   esp32cam::setLogger(Serial);
 
   connectWifiOrRestart();
@@ -143,6 +150,7 @@ void loop() {
     Serial.println("HTTP error:");
     Serial.println(http.errorToString(code).c_str());
   }else{
+    Serial.print("Posted and received: ");
     Serial.println(http.getString());
   }
 
