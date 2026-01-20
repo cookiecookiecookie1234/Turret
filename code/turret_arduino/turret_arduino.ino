@@ -3,7 +3,7 @@
 
 #define RX_PIN 12
 #define TX_PIN 13
-const uint8_t DataLenght = 16;
+const uint8_t DataLenght = 5;
 
 SoftwareSerial espSerial(RX_PIN, TX_PIN);
 
@@ -101,7 +101,17 @@ void shoot(){
   triggerState = 0;
 }
 
+bool minigun = false;
+int fastShootTime = 0;
+
 void tick(){
+  if(minigun){
+    if((millis() - fastShootTime) % 3000 < 5){
+      shoot();
+    }
+  } else {
+    fastShootTime = millis();
+  }
 
 
   float dt = (micros() - lastTick) / 1.0;
@@ -189,6 +199,12 @@ void tick(){
     }
     digitalWrite(motorPin, LOW);
   }
+  if(minigun){
+    digitalWrite(motorPin, HIGH);
+  }
+
+
+
 }
 
 uint8_t receiveBuffer[(DataLenght + 3) * 2]; 
@@ -292,13 +308,16 @@ void printPacket(){
 
 
 
+
+
+
 void loop() {
   
   handleSerial();
   
   for (int i = 0; i < 5; i++){
 
-    delay(2);
+    minigun = packet[4] == 129;
 
 
     tick();

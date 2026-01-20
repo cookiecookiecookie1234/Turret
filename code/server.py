@@ -49,10 +49,9 @@ def faceDetectandDecode(img):
         grey_image, scaleFactor=1.03, minNeighbors=5, minSize=(40, 40)
     )
     if len(face) > 0:
-        print(str([int(face[0,0]+(face[0,2]/2)),int(face[0,1]+(face[0,3]/2))]))
-        return str([int(face[0,0]+(face[0,2]/2)),int(face[0,1]+(face[0,3]/2))])
+        return "e0e0e1"
     else:
-        return "none"
+        return "e20e0e0"
     
 
 
