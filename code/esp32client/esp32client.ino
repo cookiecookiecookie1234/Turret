@@ -154,11 +154,12 @@ void sendData(String packet) {
 
   for (int i = 0; i < packet.length(); i++){
     if (packetC[i] == "e"[0]){
-      Serial.print(") Ch ");
+      Serial.print(" Ch ");
       Serial.print(Ch);
-      Serial.print(": ()");    
+      Serial.print(": (");    
       int value = atoi(packetC + i + 1);
       Serial.print(value);
+      Serial.print(")");    
       setPacketData(value + 128, Ch);
       Ch++;
     }

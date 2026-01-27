@@ -50,7 +50,7 @@ int read = 00;
 void setup(){
   triggerServo.attach(11);
 
-  Serial.begin(19200);  
+  Serial.begin(9600);  
 
   //Esp 32 data communication (UART)
   espSerial.begin(115200); 
@@ -103,109 +103,6 @@ void shoot(){
 
 bool minigun = false;
 int fastShootTime = 0;
-
-void tick(){
-  if(minigun){
-    if((millis() - fastShootTime) % 3000 < 5){
-      shoot();
-    }
-  } else {
-    fastShootTime = millis();
-  }
-
-
-  float dt = (micros() - lastTick) / 1.0;
-  lastTick = micros();
-
-  float st1 = (xyStepperCounter /2048) * 360;
-  float st2 = (yzStepperCounter /2048) * 360;
-
-  float st1E = fmod(xyTarRot, 360.0f) - fmod(st1, 360.0f);
-  float st2E = fmod(yzTarRot, 360.0f) - fmod(st2, 360.0f);
-
-
-  //Smooth stepper controller
-  if (abs(st1E) > 0.5){
-    float speed = constrain(st1E * 0.08, -1, 1);
-    speed += constrain(st1E * 100.0, -1, 1) * 0.15;
-    speed *= 0.03;
-
-
-    if (abs(st1E) < 180){
-      xyStepperCounter += constrain(dt * speed, -1.0, 1.0);
-    } else {
-      xyStepperCounter -= constrain(dt * speed, -1.0, 1.0);
-    }
-
-    if (speed <= 0.1){
-      updStepper(xyStepper, xyStepperCounter);
-    } else{
-      updStepperFast(xyStepper, xyStepperCounter);
-    }
-
-    lastMovement = millis();
-  } else {
-    if (millis() - lastMovement > 150){
-      disableStepper(xyStepper);
-    } else {
-      updStepper(xyStepper, xyStepperCounter);
-    }
-  }
-  
-  if (abs(st2E) > 0.5){
-    float speed = constrain(st2E * 0.08, -1, 1);
-    speed += constrain(st2E * 100.0, -1, 1) * 0.15;
-    speed *= 0.04;
-
-
-    if (abs(st2E) < 180){
-      yzStepperCounter += constrain(dt * speed, -1.0, 1.0);
-    } else {
-      yzStepperCounter -= constrain(dt * speed, -1.0, 1.0);
-    }
-
-
-
-    if (speed <= 0.1){
-      updStepper(yzStepper, yzStepperCounter);
-    } else{
-      updStepperFast(yzStepper, yzStepperCounter);
-    }
-
-    
-    lastMovement = millis();
-  } else {
-    if (millis() - lastMovement > 150){
-      disableStepper(yzStepper);
-    } else {
-      updStepper(yzStepper, yzStepperCounter);
-    }
-  }
-  
-
-  //Asinc servo write
-  triggerState = min(90000, triggerState + (0.1 * dt));
-  if (triggerState < 45000){
-    if(triggerState > 200){
-      triggerServo.write (5);
-    }
-    
-    digitalWrite(motorPin, HIGH);
-  } else {
-    if (triggerState > 80000 && triggerState < 89000){
-      triggerServo.write (5);
-    } else {
-      triggerServo.write(180);
-    }
-    digitalWrite(motorPin, LOW);
-  }
-  if(minigun){
-    digitalWrite(motorPin, HIGH);
-  }
-
-
-
-}
 
 uint8_t receiveBuffer[(DataLenght + 3) * 2]; 
 uint8_t bufferPacket[(DataLenght + 3)]; 
@@ -307,7 +204,118 @@ void printPacket(){
 }
 
 
+void tick(){
+  if(minigun){
+    if((millis() - fastShootTime) % 3000 < 5){
+      shoot();
+    }
+  } else {
+    fastShootTime = millis();
+  }
 
+
+  float dt = (micros() - lastTick) / 1.0;
+  lastTick = micros();
+
+
+  if (packet[0] == 255 && packet[4] != 0) {
+    minigun = packet[4] == 129;
+    xyTarRot += ((packet[2] - 128)) * 40;
+    yzTarRot += ((packet[3] - 128)) * -40;
+    packet[4] = 0;
+  }
+
+
+
+  float st1 = (xyStepperCounter /2048) * 360;
+  float st2 = (yzStepperCounter /2048) * 360;
+
+  float st1E = fmod(xyTarRot, 360.0f) - fmod(st1, 360.0f);
+  float st2E = fmod(yzTarRot, 360.0f) - fmod(st2, 360.0f);
+
+
+  //Smooth stepper controller
+  if (abs(st1E) > 0.5){
+    float speed = constrain(st1E * 0.08, -1, 1);
+    speed += constrain(st1E * 100.0, -1, 1) * 0.15;
+    speed *= 0.0015;
+
+
+    if (abs(st1E) < 180){
+      xyStepperCounter += constrain(dt * speed, -1.0, 1.0);
+    } else {
+      xyStepperCounter -= constrain(dt * speed, -1.0, 1.0);
+    }
+
+    if (speed <= 0.1){
+      updStepper(xyStepper, xyStepperCounter);
+    } else{
+      updStepperFast(xyStepper, xyStepperCounter);
+    }
+
+    lastMovement = millis();
+  } else {
+    if (millis() - lastMovement > 150){
+      disableStepper(xyStepper);
+    } else {
+      updStepper(xyStepper, xyStepperCounter);
+    }
+  }
+  
+  if (abs(st2E) > 0.5){
+    float speed = constrain(st2E * 0.08, -1, 1);
+    speed += constrain(st2E * 100.0, -1, 1) * 0.15;
+    speed *= 0.002;
+
+
+    if (abs(st2E) < 180){
+      yzStepperCounter += constrain(dt * speed, -1.0, 1.0);
+    } else {
+      yzStepperCounter -= constrain(dt * speed, -1.0, 1.0);
+    }
+
+
+
+    if (speed <= 0.1){
+      updStepper(yzStepper, yzStepperCounter);
+    } else{
+      updStepperFast(yzStepper, yzStepperCounter);
+    }
+
+    
+    lastMovement = millis();
+  } else {
+    if (millis() - lastMovement > 150){
+      disableStepper(yzStepper);
+    } else {
+      updStepper(yzStepper, yzStepperCounter);
+    }
+  }
+  
+
+  //Asinc servo write
+  triggerState = min(90000, triggerState + (0.1 * dt));
+  if (triggerState < 45000){
+    if(triggerState > 200){
+      triggerServo.write (5);
+    }
+    
+    digitalWrite(motorPin, HIGH);
+  } else {
+    if (triggerState > 80000 && triggerState < 89000){
+      triggerServo.write (5);
+    } else {
+      triggerServo.write(180);
+    }
+    digitalWrite(motorPin, LOW);
+  }
+  if(minigun){
+    digitalWrite(motorPin, HIGH);
+  }
+
+
+
+}
 
 
 
@@ -316,16 +324,23 @@ void loop() {
   handleSerial();
   
   for (int i = 0; i < 5; i++){
-
-    minigun = packet[4] == 129;
-    xyTarRot += ((packet[2] - 128f) / 128f) * 2f;
-    yzTarRot += ((packet[3] - 128f) / 128f) * 2f;
-
     tick();
   }
 
+  if (yzTarRot > 30){
+    yzTarRot = 30;
+  }
+
+    if (yzTarRot < -10){
+    yzTarRot = -10;
+  }
+
+
+
   if (millis() % 600 < 11){
     printPacket();
+    Serial.println(xyTarRot);
+    Serial.println(yzTarRot);
   }
 }
 
