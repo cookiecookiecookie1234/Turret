@@ -318,7 +318,8 @@ void loop() {
   for (int i = 0; i < 5; i++){
 
     minigun = packet[4] == 129;
-
+    xyTarRot += ((packet[2] - 128f) / 128f) * 2f;
+    yzTarRot += ((packet[3] - 128f) / 128f) * 2f;
 
     tick();
   }

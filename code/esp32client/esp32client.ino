@@ -6,6 +6,7 @@
 
 #define TX_PIN 14
 #define RX_PIN 15
+#define LED_BUILTIN 33
 
 static const char* WIFI_SSID = "wifi-n";
 static const char* WIFI_PASS = "#patagonia";
@@ -124,7 +125,7 @@ void udpBroadcastServerDiscovery(){
 }
 
 void setup() {
-  pinMode(4, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   setupBridge(TX_PIN, RX_PIN, 5);
   
@@ -153,9 +154,9 @@ void sendData(String packet) {
 
   for (int i = 0; i < packet.length(); i++){
     if (packetC[i] == "e"[0]){
-      Serial.print(" Ch ");
+      Serial.print(") Ch ");
       Serial.print(Ch);
-      Serial.print(": ");    
+      Serial.print(": ()");    
       int value = atoi(packetC + i + 1);
       Serial.print(value);
       setPacketData(value + 128, Ch);
@@ -183,17 +184,17 @@ void loop() {
     Serial.println("HTTP error:");
     Serial.println(http.errorToString(code).c_str());
 
-      digitalWrite(4, HIGH);
+      digitalWrite(LED_BUILTIN, HIGH);
       delay(200);
-      digitalWrite(4, LOW);
+      digitalWrite(LED_BUILTIN, LOW);
 
   }else{
     String value = http.getString();
     Serial.println(value);
 
-      digitalWrite(4, HIGH);
+      digitalWrite(LED_BUILTIN, HIGH);
       delay(10);
-      digitalWrite(4, LOW);
+      digitalWrite(LED_BUILTIN, LOW);
 
 
     sendData(value);
